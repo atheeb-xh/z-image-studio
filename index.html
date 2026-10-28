@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z-Image Studio</title>
+<style>
+  :root {
+    --bg: #0f1012; --panel: #17181b; --line: #2a2c31; --text: #ececee; --muted: #8b8d94;
+    --accent: #f5c542; --accent-ink: #1a1400; --danger: #ff6b6b; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 20px; padding: 20px; min-height: 100vh; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  aside, section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 17px; margin: 0; display: flex; justify-content: space-between; align-items: center; }
+  .pill { font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; }
+  .pill.ok { color: #7ee2a8; border-color: #2b5a40; }
+  button.link { background: none; border: 0; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+  button.link:hover { color: var(--text); }
+  .setup { max-width: 360px; }
+  .setup b { display: block; color: var(--text); font-size: 16px; margin-bottom: 6px; }
+  .track { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 14px 0 8px; }
+  .fill { height: 100%; width: 0; background: var(--accent); transition: width .6s; }
+  .fill.indet { width: 35%; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { margin-left: -35%; } to { margin-left: 100%; } }
+  label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .drop { position: relative; border: 1.5px dashed var(--line); border-radius: 12px; min-height: 150px; display: grid; place-items: center; text-align: center; color: var(--muted); cursor: pointer; overflow: hidden; }
+  .drop.over { border-color: var(--accent); color: var(--text); }
+  .drop img { width: 100%; max-height: 260px; object-fit: contain; display: block; }
+  .drop .x { position: absolute; top: 8px; right: 8px; background: #000a; color: #fff; border: 0; border-radius: 99px; width: 28px; height: 28px; cursor: pointer; font-size: 16px; }
+  textarea, input, select { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; }
+  textarea { min-height: 110px; resize: vertical; }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  input[type=range] { padding: 0; accent-color: var(--accent); }
+  .val { float: right; color: var(--text); text-transform: none; letter-spacing: 0; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 13px; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; font: inherit; cursor: pointer; }
+  button.ghost:hover { border-color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details[open] summary { margin-bottom: 10px; }
+  section { display: flex; flex-direction: column; gap: 14px; }
+  .stage { flex: 1; display: grid; place-items: center; border-radius: 12px; background: var(--bg); min-height: 360px; color: var(--muted); text-align: center; padding: 12px; }
+  .stage img { max-width: 100%; max-height: calc(100vh - 170px); border-radius: 8px; display: block; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .meta { color: var(--muted); font-size: 13px; margin-right: auto; }
+  .err { color: var(--danger); }
+  .spin { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: r 0.9s linear infinite; margin: 0 auto 10px; }
+  @keyframes r { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <h1>Z-Image Studio <span><span class="pill" id="status">starting…</span> <button class="link" id="quit" title="Stop Z-Image Studio and free its memory">Quit</button></span></h1>
+
+    <div>
+      <label>Reference image <span class="val">optional</span></label>
+      <div class="drop" id="drop" tabindex="0">
+        <div id="dropText">Drop an image here, click, or paste</div>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div>
+      <label for="prompt">Scene</label>
+      <textarea id="prompt" placeholder="A man in a blue kurta giving a talk on a stage, warm spotlight, cinematic photo"></textarea>
+      <div class="hint">⌘ + Enter to generate</div>
+    </div>
+
+    <div id="strengthBox" hidden>
+      <label for="strength">Keep from reference <span class="val" id="strengthVal">40%</span></label>
+      <input type="range" id="strength" min="0.1" max="0.9" step="0.05" value="0.4">
+      <div class="hint">Low: new picture, loosely based on yours. High: close to your image, small changes.</div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="shape">Shape</label>
+        <select id="shape">
+          <option value="ref">Match reference</option>
+          <option value="1024x1024">Square</option>
+          <option value="832x1216">Portrait</option>
+          <option value="1216x832">Landscape</option>
+          <option value="1344x768">Wide 16:9</option>
+        </select>
+      </div>
+      <div>
+        <label for="seed">Seed</label>
+        <input id="seed" placeholder="random" inputmode="numeric">
+      </div>
+    </div>
+
+    <details>
+      <summary>More settings</summary>
+      <label for="steps">Steps <span class="val" id="stepsVal">9</span></label>
+      <input type="range" id="steps" min="4" max="16" step="1" value="9">
+      <div class="hint">More steps = more detail, slower. 9 is the model's default.</div>
+    </details>
+
+    <button class="primary" id="go">Generate</button>
+  </aside>
+
+  <section>
+    <div class="stage" id="stage">Your image shows up here.<br>Nothing is saved unless you download it.</div>
+    <template id="setupTpl">
+      <div class="setup"><b id="setupTitle"></b><span id="setupText"></span>
+        <div class="track"><div class="fill" id="setupFill"></div></div><span id="setupPct"></span></div>
+    </template>
+    <div class="bar" id="bar" hidden>
+      <span class="meta" id="meta"></span>
+      <button class="ghost" id="reuseSeed">Reuse seed</button>
+      <button class="ghost" id="asRef">Use as reference</button>
+      <button class="primary" id="download" style="padding:9px 16px">Download</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let refData = null, refSize = null, result = null;
+
+// Reference image: drop, click, or paste
+function setRef(dataUrl) {
+  refData = dataUrl;
+  const drop = $("drop");
+  if (!dataUrl) {
+    drop.innerHTML = '<div id="dropText">Drop an image here, click, or paste</div>';
+    $("strengthBox").hidden = true; refSize = null; syncShape(); return;
+  }
+  const img = new Image();
+  img.onload = () => { refSize = [img.naturalWidth, img.naturalHeight]; syncShape(); };
+  img.src = dataUrl;
+  drop.innerHTML = "";
+  drop.append(img);
+  const x = document.createElement("button");
+  x.className = "x"; x.textContent = "×"; x.title = "Remove";
+  x.onclick = (e) => { e.stopPropagation(); setRef(null); };
+  drop.append(x);
+  $("strengthBox").hidden = false;
+}
+function readFile(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  const r = new FileReader();
+  r.onload = () => setRef(r.result);
+  r.readAsDataURL(f);
+}
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+$("file").onchange = (e) => { readFile(e.target.files[0]); e.target.value = ""; };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); readFile(e.dataTransfer.files[0]); };
+document.addEventListener("paste", (e) => {
+  const item = [...e.clipboardData.items].find((i) => i.type.startsWith("image/"));
+  if (item) readFile(item.getAsFile());
+});
+
+// Shape: "Match reference" only makes sense with a reference
+function syncShape() {
+  const opt = $("shape").querySelector('option[value="ref"]');
+  opt.disabled = !refData;
+  if (!refData && $("shape").value === "ref") $("shape").value = "1024x1024";
+  if (refData && !$("shape").dataset.touched) $("shape").value = "ref";
+}
+$("shape").onchange = () => { $("shape").dataset.touched = "1"; };
+syncShape();
+
+function size() {
+  const v = $("shape").value;
+  if (v !== "ref" || !refSize) return v.split("x").map(Number);
+  const [w, h] = refSize, scale = 1024 / Math.max(w, h);  // long side ~1024
+  return [w * scale, h * scale].map((n) => Math.max(256, Math.round(n / 16) * 16));
+}
+
+$("strength").oninput = (e) => $("strengthVal").textContent = Math.round(e.target.value * 100) + "%";
+$("steps").oninput = (e) => $("stepsVal").textContent = e.target.value;
+
+// Generate
+async function go() {
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { $("prompt").focus(); return; }
+  const [width, height] = size();
+  $("go").disabled = true; $("go").dataset.running = "1"; $("bar").hidden = true;
+  const t0 = Date.now();
+  $("stage").innerHTML = '<div><div class="spin"></div><span id="tick">Working… 0s</span></div>';
+  const timer = setInterval(() => { const t = $("tick"); if (t) t.textContent = `Working… ${Math.round((Date.now() - t0) / 1000)}s`; }, 500);
+  try {
+    const res = await fetch("/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, width, height, image: refData, strength: +$("strength").value, steps: +$("steps").value, seed: $("seed").value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    result = data;
+    $("stage").innerHTML = "";
+    const img = new Image(); img.src = "data:image/png;base64," + data.image; img.alt = prompt;
+    $("stage").append(img);
+    $("meta").textContent = `${data.width}×${data.height} · seed ${data.seed} · ${data.seconds}s`;
+    $("bar").hidden = false;
+  } catch (e) {
+    $("stage").innerHTML = `<span class="err"></span>`;
+    $("stage").firstChild.textContent = e.message === "Failed to fetch" ? "Can't reach Z-Image Studio. Open the app again." : e.message;
+  } finally {
+    clearInterval(timer); delete $("go").dataset.running; $("go").disabled = !ready;
+  }
+}
+$("go").onclick = go;
+$("prompt").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) go(); };
+
+$("download").onclick = () => {
+  const a = document.createElement("a");
+  a.href = "data:image/png;base64," + result.image;
+  a.download = `z-image-${result.seed}.png`;
+  a.click();
+};
+$("reuseSeed").onclick = () => { $("seed").value = result.seed; };
+$("asRef").onclick = () => setRef("data:image/png;base64," + result.image);
+
+// Setup and model status
+const PHASES = {
+  starting:    ["Starting…", "One moment."],
+  installing:  ["Installing (one time)", "Getting the app ready. About 1 GB, a few minutes."],
+  downloading: ["Downloading the model (one time)", "About 5.5 GB. You can leave this open."],
+  loading:     ["Loading the model", "Takes up to a minute."],
+  error:       ["Setup hit a problem", ""],
+};
+let ready = false, showingSetup = false;
+function showSetup(s) {
+  if (!showingSetup) { $("stage").replaceChildren($("setupTpl").content.cloneNode(true)); showingSetup = true; }
+  const [title, text] = PHASES[s.phase] || PHASES.starting;
+  $("setupTitle").textContent = title;
+  $("setupText").textContent = s.phase === "error" ? s.error + " — quit and open the app again to retry." : text;
+  $("setupText").className = s.phase === "error" ? "err" : "";
+  const fill = $("setupFill"), known = typeof s.progress === "number";
+  fill.classList.toggle("indet", !known && s.phase !== "error");
+  fill.style.width = known ? Math.round(s.progress * 100) + "%" : "";
+  $("setupPct").textContent = known ? Math.round(s.progress * 100) + "%" : "";
+}
+async function poll() {
+  try {
+    const s = await (await fetch("/status")).json();
+    ready = s.phase === "ready";
+    $("status").textContent = s.busy ? "working" : ready ? "ready" : s.phase === "error" ? "problem" : "setting up";
+    $("status").className = "pill" + (ready ? " ok" : "");
+    if (!ready) showSetup(s);
+    else if (showingSetup) { showingSetup = false; $("stage").innerHTML = "Ready. Your image shows up here.<br>Nothing is saved unless you download it."; }
+    if (!$("go").dataset.running) $("go").disabled = !ready;
+  } catch { $("status").textContent = "stopped"; $("status").className = "pill"; $("go").disabled = true; }
+}
+poll(); setInterval(poll, 1500);
+
+$("quit").onclick = async () => {
+  if (!confirm("Quit Z-Image Studio? Any image in progress is lost.")) return;
+  try { await fetch("/quit", { method: "POST" }); } catch {}
+  document.body.innerHTML = '<p style="padding:40px;text-align:center;color:#8b8d94">Z-Image Studio has quit. You can close this tab.</p>';
+};
+</script>
+</body>
+</html>

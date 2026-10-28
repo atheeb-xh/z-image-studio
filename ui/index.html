@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z-Image Studio</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">Z</span> Z-Image Studio</div>
+  <button class="chip models-chip" id="modelsChip" title="Models and downloads">
+    <span class="dot" id="modelsDot"></span><span id="modelsChipText">Models</span>
+  </button>
+</header>
+
+<main class="layout">
+  <!-- Controls -->
+  <aside class="panel" id="panel">
+    <div class="scroll">
+      <section>
+        <div class="label-row"><label>Model</label><button class="link" id="openModels">All models</button></div>
+        <div class="model-picker" id="modelPicker"></div>
+        <div class="auto-note" id="autoNote"></div>
+      </section>
+
+      <section>
+        <div class="label-row"><label>Reference images</label><span class="hint-inline" id="refHint">optional</span></div>
+        <div class="refs" id="refs">
+          <button class="ref-add" id="refAdd" title="Add an image (or drop / paste one)">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add</span>
+          </button>
+        </div>
+        <input type="file" id="file" accept="image/*" multiple hidden>
+      </section>
+
+      <section>
+        <div class="label-row"><label for="prompt">Prompt</label><button class="link enhance" id="enhance" title="Make a short prompt more detailed">✦ Enhance</button></div>
+        <textarea id="prompt" rows="4" placeholder="A chai seller in Mumbai at golden hour, cinematic photo"></textarea>
+        <div class="enhance-undo" id="enhanceUndo" hidden>Prompt enhanced. <button class="link" id="undoEnhance">Undo</button></div>
+      </section>
+
+      <section>
+        <label>Style</label>
+        <div class="presets" id="presets"></div>
+      </section>
+
+      <section class="grid2">
+        <div>
+          <label>Shape</label>
+          <div class="seg shapes" id="shapes"></div>
+        </div>
+      </section>
+
+      <section class="grid2">
+        <div>
+          <label>Images</label>
+          <div class="seg" id="count"></div>
+        </div>
+        <div>
+          <label>Quality <button class="info-btn" data-tip="quality">i</button></label>
+          <div class="seg" id="quality"></div>
+        </div>
+      </section>
+
+      <section id="strengthBox" hidden>
+        <div class="label-row"><label for="strength">Keep from reference</label><span class="val" id="strengthVal">45%</span></div>
+        <input type="range" id="strength" min="0.15" max="0.85" step="0.05" value="0.45">
+        <div class="hint">Z-Image redraws your image. Low: new picture inspired by it. High: close to it, small changes.</div>
+      </section>
+
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <div class="grid2">
+          <div>
+            <div class="label-row"><label for="steps">Steps</label><span class="val" id="stepsVal">auto</span></div>
+            <input type="range" id="steps" min="0" max="20" step="1" value="0">
+          </div>
+          <div>
+            <label for="seed">Seed</label>
+            <input id="seed" placeholder="random" inputmode="numeric">
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="generate-bar">
+      <div class="gen-msg" id="genMsg"></div>
+      <button class="btn-primary" id="go"><span id="goText">Generate</span><kbd>⌘↵</kbd></button>
+    </div>
+  </aside>
+
+  <!-- Canvas -->
+  <section class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">
+        <div class="empty-mark">✦</div>
+        <h2>What do you want to make?</h2>
+        <p>Type a prompt, or drop in a photo and say what to change.<br>Nothing is saved unless you save it.</p>
+        <div class="ideas" id="ideas"></div>
+      </div>
+      <div class="results" id="results" hidden></div>
+      <div class="progress" id="progress" hidden>
+        <div class="progress-card">
+          <div class="progress-title" id="progTitle">Starting…</div>
+          <div class="bar"><div class="fill" id="progFill"></div></div>
+          <div class="progress-row"><span id="progText"></span><button class="btn-ghost small" id="cancel">Cancel <kbd>esc</kbd></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="meta" id="meta"></div>
+      <div class="actions">
+        <button class="btn-ghost" data-act="ref" title="Use this image as a reference">Use as reference</button>
+        <button class="btn-ghost" data-act="upscale" title="Make it 2× larger and sharper">Upscale 2×</button>
+        <button class="btn-ghost" data-act="cutout" title="Remove the background">Remove background</button>
+        <button class="btn-ghost" data-act="reuse" title="Put this image's settings back in the panel">Reuse settings</button>
+        <button class="btn-ghost icon" data-act="copy" title="Copy image">
+          <svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+        <button class="btn-ghost icon" data-act="delete" title="Remove from this session">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>
+        <button class="btn-primary small" data-act="save">Save…</button>
+      </div>
+    </div>
+
+    <div class="filmstrip" id="filmstrip" hidden></div>
+  </section>
+</main>
+
+<!-- Models sheet -->
+<div class="sheet-backdrop" id="modelsSheet" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div>
+        <h3>Models</h3>
+        <p id="machineLine"></p>
+      </div>
+      <button class="btn-ghost icon" id="closeModels" title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="model-cards" id="modelCards"></div>
+    <div class="sheet-foot" id="sheetFoot"></div>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<div class="drop-overlay" id="dropOverlay" hidden><div>Drop to use as a reference</div></div>
+
+<script src="app.js"></script>
+</body>
+</html>
